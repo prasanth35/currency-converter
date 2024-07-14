@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/prasanth35/currency-converter/static/css/main.87915c4d.css",
+    "main.js": "/prasanth35/currency-converter/static/js/main.036e14b8.js",
+    "index.html": "/prasanth35/currency-converter/index.html",
+    "main.87915c4d.css.map": "/prasanth35/currency-converter/static/css/main.87915c4d.css.map",
+    "main.036e14b8.js.map": "/prasanth35/currency-converter/static/js/main.036e14b8.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.87915c4d.css",
+    "static/js/main.036e14b8.js"
+  ]
+}
