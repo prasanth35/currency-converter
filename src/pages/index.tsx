@@ -1,30 +1,41 @@
-import { Card, CardActions, CardContent, Container, Grid, TextField, Typography } from '@mui/material'
-import { useEffect, useState } from 'react'
+import { Card, CardActions, CardContent, Container, Grid, Select, SelectChangeEvent, Stack, TextField, Typography } from '@mui/material'
+import { ChangeEvent, useEffect, useState } from 'react'
 import CountrySelect from '../components/countrySelector'
 import { CountryType } from '../lib/types/common'
 import { ConversionRates, ExchangeRateApiResponseType } from '../lib/types/apiResponseTypes'
 import { constants } from '../lib/utils/constants'
-import React from 'react'
-
+import MenuItem from '@mui/material/MenuItem';
+import dayjs from 'dayjs'
 /**
  * @author PRASANTH.M
  * CurrencyConverter component allows users to convert an amount from one currency to another.
  * It fetches exchange rates from the Exchange Rate API and displays the conversion result.
  */
+
+interface interfaceCountry extends CountryType {
+    date?: string
+}
 const CurrencyConverter = () => {
 
     const [loading, setLoading] = useState<boolean>(false)
     const [amount, setAmount] = useState<number>(0)
-    const [fromCountry, setFromCountry] = useState<CountryType>()
+    const [fromCountry, setFromCountry] = useState<interfaceCountry>({
+        code: '',
+        imageCode: '',
+        label: '',
+        date: dayjs().format("YYYY-MM-DD"),
+        suggested: false
+    })
     const [toCountry, setToCountry] = useState<CountryType>()
-
+    const [currentApi, setCurrentApi] = useState<string>(constants.AVAILABLE_API[0])
     const [apiResponse, setApiResponse] = useState<ExchangeRateApiResponseType>()
     const [errorText, setErrorText] = useState<string>()
 
     useEffect(() => {
-        if (fromCountry?.code) { fetchConversionData() }
+
+        if (fromCountry?.code !== '' && errorText === '') { fetchConversionData() }
         // eslint-disable-next-line
-    }, [fromCountry?.code])
+    }, [fromCountry?.code, currentApi])
 
     /**
      * Fetches the conversion rates from the Exchange Rate API for the selected 'fromCountry'.
@@ -35,8 +46,26 @@ const CurrencyConverter = () => {
         try {
             if (!fromCountry?.code) throw new Error('From country is not selected')
 
-            const exchangeRateResponse = await fetch(`https://v6.exchangerate-api.com/v6/${constants.API_KEY}/latest/${fromCountry?.code}`)
-            const data = await exchangeRateResponse?.json() as ExchangeRateApiResponseType
+            let exchangeRateResponse;
+            if (currentApi === 'history') {
+                const splitValue: any = fromCountry?.date?.split('-')
+                const date = {
+                    year: splitValue[0] || '',
+                    month: splitValue[1] || '',
+                    day: splitValue[2] || ''
+                }
+                exchangeRateResponse = await fetch(`https://v6.exchangerate-api.com/v6/${constants.API_KEY}/history/${fromCountry?.code}/${date?.year}/${date?.month}/${date?.day}`)
+            } else {
+                exchangeRateResponse = await fetch(`https://v6.exchangerate-api.com/v6/${constants.API_KEY}/latest/${fromCountry?.code}`)
+            }
+            const data: any = await exchangeRateResponse?.json()
+
+            if (data?.result !== 'success') {
+                if (data['error-type']?.includes('plan-upgrade-required')) {
+                    throw new Error(`${data['error-type']} for historical data access`)
+                }
+                throw new Error(`${data['error-type']}`)
+            }
 
             setApiResponse(data)
             setErrorText('')
@@ -61,7 +90,10 @@ const CurrencyConverter = () => {
      * @param from - The selected 'from' country.
      */
     const onselectFromCurrency = (from: CountryType) => {
-        setFromCountry(from) 
+        setFromCountry(prevState => ({
+            ...prevState,
+            ...from
+        }))
     }
 
     /**
@@ -69,22 +101,55 @@ const CurrencyConverter = () => {
      * @param to - The selected 'to' country.
      */
     const onSelectToCurrency = (to: CountryType) => {
-        setToCountry(to)
+        setToCountry({
+            ...to
+        })
     }
+    /**
+     * Handles selection of the API to use.
+     * @param SelectChangeEvent.
+     */
+    const handleChange = (event: SelectChangeEvent) => {
+        setErrorText('')
+        setCurrentApi(event.target.value);
+    };
 
-    const showOutPut = !!(fromCountry?.code  && toCountry?.code && amount !== 0 && apiResponse?.result)
-    const currentRateForSelectedCountry = (apiResponse?.conversion_rates[toCountry?.code as keyof ConversionRates]) || 0
+    /**
+    * Handles selection of the API to use.
+    */
+    const handleDateChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        const value = event?.target?.value
+
+        setFromCountry(prevState => ({
+            ...prevState,
+            date: value
+        }))
+    };
+
+    const showOutPut = !!(fromCountry?.code !== '' && toCountry?.code !== '' && amount !== 0 && apiResponse?.result === 'success')
+    const currentRateForSelectedCountry = apiResponse?.result === 'success' ? (apiResponse?.conversion_rates[toCountry?.code as keyof ConversionRates]) : 0
 
     return (
         <div className='w-full h-screen mx-auto flex items-center justify-center'>
             <Container maxWidth="md">
                 <Card elevation={1} className='drop-shadow-sm rounded-lg'>
                     <CardContent>
-                        <Typography gutterBottom variant="h6" marginBottom={4} fontWeight={700} textAlign={'start'} component="div">
-                            Currency Converter
-                        </Typography>
-                        <Grid container spacing={3}>
-                            <Grid item xs={12} md={4}>
+                        <Stack gap={1} className='w-fit' marginBottom={2}>
+                            <Typography variant="h6" fontWeight={600} fontStyle={'normal'} fontFamily={'initial'} textAlign={'start'} >
+                                Currency Converter
+                            </Typography>
+                            <Select
+                                value={currentApi}
+                                onChange={handleChange}
+                                size='small'>
+                                {
+                                    constants.AVAILABLE_API.map(api => <MenuItem key={api} value={api}>{api}</MenuItem>)
+                                }
+                            </Select>
+                        </Stack>
+
+                        <Grid container spacing={2}>
+                            <Grid item xs={12} md={currentApi === 'history' ? 3 : 4}>
                                 <TextField
                                     type='number'
                                     inputMode='numeric'
@@ -93,12 +158,16 @@ const CurrencyConverter = () => {
                                     fullWidth
                                 />
                             </Grid>
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={currentApi === 'history' ? 3 : 4}>
                                 <CountrySelect label='From' onSelect={onselectFromCurrency} />
                             </Grid>
-                            <Grid item xs={12} md={4}>
+                            <Grid item xs={12} md={currentApi === 'history' ? 3 : 4}>
                                 <CountrySelect label='To' onSelect={onSelectToCurrency} />
                             </Grid>
+                            {currentApi === 'history' ?
+                                <Grid item xs={12} md={3}>
+                                    <TextField value={fromCountry?.date} type='date' onChange={handleDateChange} />
+                                </Grid> : null}
                         </Grid>
                         {showOutPut && (
                             <Grid container spacing={1} marginTop={1}>
@@ -115,12 +184,11 @@ const CurrencyConverter = () => {
                                 </Grid>
                             </Grid>
                         )}
-
                     </CardContent>
                     <CardActions className='flex-row-reverse'>
                         {loading ? <Typography variant='caption' className='text-gray-400' fontWeight={400}> Loading conversion data ... </Typography> : null}
                         {errorText ? (
-                            <Typography variant='caption' className='text-red-700'> Oops : {errorText}</Typography>
+                            <Typography variant='caption' className='text-red-700 border-2 rounded-lg p-2 border-red-100'> Oops : {errorText}</Typography>
                         ) : null}
                     </CardActions>
                 </Card>

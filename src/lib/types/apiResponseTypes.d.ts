@@ -9,6 +9,14 @@ export interface ExchangeRateApiResponseType {
     base_code: string
     conversion_rates: ConversionRates
   }
+
+  export interface ExchangeRateApiErrorResponseType {
+    "result": string,
+    "documentation": string
+    "terms-of-use": string
+    "error-type": string
+  }
+  
   
   export interface ConversionRates {
     USD: number
