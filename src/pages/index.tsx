@@ -15,21 +15,26 @@ import dayjs from 'dayjs'
 interface interfaceCountry extends CountryType {
     date?: string
 }
-const CurrencyConverter = () => {
 
+const defaultValues = {
+    code: '',
+    imageCode: '',
+    label: '',
+    suggested: false
+}
+const fromCountryDefaultValues = {
+    ...defaultValues,
+    date : dayjs().format("YYYY-MM-DD")
+}
+const CurrencyConverter = () => {
+    const currentDate = dayjs().format("YYYY-MM-DD")
     const [loading, setLoading] = useState<boolean>(false)
     const [amount, setAmount] = useState<number>(0)
-    const [fromCountry, setFromCountry] = useState<interfaceCountry>({
-        code: '',
-        imageCode: '',
-        label: '',
-        date: dayjs().format("YYYY-MM-DD"),
-        suggested: false
-    })
-    const [toCountry, setToCountry] = useState<CountryType>()
+    const [fromCountry, setFromCountry] = useState<interfaceCountry>({...fromCountryDefaultValues})
+    const [toCountry, setToCountry] = useState<CountryType>({...defaultValues})
     const [currentApi, setCurrentApi] = useState<string>(constants.AVAILABLE_API[0])
     const [apiResponse, setApiResponse] = useState<ExchangeRateApiResponseType>()
-    const [errorText, setErrorText] = useState<string>()
+    const [errorText, setErrorText] = useState<string>('')
 
     useEffect(() => {
 
@@ -90,10 +95,9 @@ const CurrencyConverter = () => {
      * @param from - The selected 'from' country.
      */
     const onselectFromCurrency = (from: CountryType) => {
-        setFromCountry(prevState => ({
-            ...prevState,
-            ...from
-        }))
+        setFromCountry({
+            ...(from ? from : fromCountryDefaultValues)
+         });
     }
 
     /**
@@ -102,7 +106,7 @@ const CurrencyConverter = () => {
      */
     const onSelectToCurrency = (to: CountryType) => {
         setToCountry({
-            ...to
+            ...(to ? to : defaultValues)
         })
     }
     /**
@@ -126,7 +130,7 @@ const CurrencyConverter = () => {
         }))
     };
 
-    const showOutPut = !!(fromCountry?.code !== '' && toCountry?.code !== '' && amount !== 0 && apiResponse?.result === 'success')
+    const showOutput = !!(fromCountry?.code !== '' && toCountry?.code !== '' && amount !== 0 && apiResponse?.result === 'success')
     const currentRateForSelectedCountry = apiResponse?.result === 'success' ? (apiResponse?.conversion_rates[toCountry?.code as keyof ConversionRates]) : 0
 
     return (
@@ -147,7 +151,6 @@ const CurrencyConverter = () => {
                                 }
                             </Select>
                         </Stack>
-
                         <Grid container spacing={2}>
                             <Grid item xs={12} md={currentApi === 'history' ? 3 : 4}>
                                 <TextField
@@ -169,7 +172,7 @@ const CurrencyConverter = () => {
                                     <TextField value={fromCountry?.date} type='date' onChange={handleDateChange} />
                                 </Grid> : null}
                         </Grid>
-                        {showOutPut && (
+                        {showOutput && (
                             <Grid container spacing={1} marginTop={1}>
                                 <Grid item xs={12}>
                                     <Typography variant='subtitle1' fontWeight={300}>{amount} {fromCountry?.code} = </Typography>
